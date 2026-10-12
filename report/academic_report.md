@@ -171,26 +171,65 @@ This modest performance ceiling underscores that while debate meta-vocabulary (p
 
 ---
 
-## 5. Computational Framework & Cloud Integration
+## 5. Contextual Cross-Encoders: Empirical Benchmark & Numerical Stability
 
-To bridge the performance gap revealed by classical baselines, future modeling requires computationally intensive deep architectures (Transformer cross-encoders, DeBERTa-v3, and LLM zero-shot inference). The experimental framework interfaces with Google Colaboratory:
+### 5.1 Formulation & Motivation
+To overcome the relational barrier observed in bag-of-words models, we evaluated contextual cross-encoders. In contrast to dual-encoder architectures that project topic and premise into independent embedding spaces, a cross-encoder concatenates both sequences into a single bidirectional transformer stack:
 
-1. **Colaboratory REST API (`colaboratory.googleapis.com`)**: Programmatic lifecycle management of cloud execution runtimes, enabling automated dispatch and evaluation pipelines (`src/colab_api.py`).
-2. **Dual-Environment Notebook Workflows**: Notebooks in `notebooks/` feature dynamic runtime detection (`in_colab()`), automatically provisioning cloud dependencies, Google Drive mounts, and GPU accelerators (T4/V100/A100 GPUs) where available.
+$$\text{Input: } [\text{CLS}] \; C_1, \dots, C_m \; [\text{SEP}] \; P_1, \dots, P_n \; [\text{SEP}]$$
+
+Every token in premise $P$ directly attends to every token in motion $C$ across all self-attention layers, theoretically allowing the network to distinguish whether critical vocabulary is directed toward the motion itself or toward an opposing speaker's prior contention.
+
+### 5.2 Numerical Stability & Model Selection: The DeBERTa-v3 vs. RoBERTa Finding
+During cloud fine-tuning on Google Colab hardware accelerators (NVIDIA T4 GPU), we identified a critical architectural and numerical phenomenon:
+
+1. **DeBERTa-v3 Gradient Instability**: When fine-tuning `microsoft/deberta-v3-small` under standard cross-entropy and AdamW optimization ($\text{lr} = 2 \times 10^{-5}$), the model suffered catastrophic gradient breakdown within the initial optimization steps, yielding $\text{Train Loss} \to \text{NaN}$ and $\text{Validation Loss} \to \text{NaN}$.
+2. **Data Integrity Verification**: Exhaustive verification confirmed $0$ null, missing, or malformed entries across train ($n = 3,600$), validation ($n = 400$), and test ($n = 1,000$) subsets.
+3. **Resolution via RoBERTa-Base**: Replacing the disentangled attention backbone with `roberta-base` (Liu et al., 2019) resolved all numerical instability immediately. RoBERTa exhibited smooth, monotonic convergence, with training loss decreasing from $0.6971$ to $0.6778$ and validation macro F1 reaching $0.5135$ before early-stopping checkpoint retrieval.
+
+### 5.3 Comparative Empirical Performance Across Paradigms
+
+Evaluating the fine-tuned RoBERTa-base cross-encoder against the pre-trained zero-shot baseline and earlier classical baselines on the held-out test set ($N_{\text{test}} = 1,000$) yields the following benchmark:
+
+| Paradigm / Architecture | Model Backbone | Accuracy | Macro F1 | CON F1 | PRO F1 | ROC-AUC |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **Heuristic Baseline** | Majority Class (Zero-R) | 0.5020 | 0.3342 | 0.6684 | 0.0000 | 0.5000 |
+| **Affect / Sentiment** | VADER Compound Polarity | 0.5040 | 0.4988 | 0.4477 | 0.5499 | N/A |
+| **Traditional ML** | Random Forest (16 Dense Features) | 0.5120 | 0.5117 | 0.5000 | 0.5234 | 0.5269 |
+| **Traditional ML** | Linear SVM (Contextual TF-IDF) | 0.5070 | 0.5067 | 0.5190 | 0.4944 | 0.5244 |
+| **Traditional ML (Ceiling)** | Logistic Regression (Premise TF-IDF) | 0.5490 | 0.5490 | 0.5449 | 0.5530 | 0.5580 |
+| **Zero-Shot Transformer** | NLI DeBERTa-v3 Small (`cross-encoder`) | 0.5230 | 0.4936 | 0.5841 | 0.4031 | 0.5541 |
+| **Fine-Tuned Cross-Encoder** | `microsoft/deberta-v3-small` | *Failed* | *NaN* | *NaN* | *NaN* | *NaN* |
+| **Fine-Tuned Cross-Encoder** | **`roberta-base` (2 Epochs, AdamW)** | **0.5890** | **0.5868** | **0.6170** | **0.5566** | **0.6265** |
+
+### 5.4 Architectural Takeaways
+1. **Breaking the Traditional NLP Plateau**: Fine-tuned `roberta-base` achieved an accuracy of **$58.90\%$** and an ROC-AUC of **$0.6265$**, decisively surpassing the $54.90\%$ ceiling of traditional bag-of-words and linear models.
+2. **Discrimination on Hard Opposition Arguments**: RoBERTa achieved a **CON F1 of $0.6170$** (identifying 331 true CON arguments out of 502), demonstrating resilience against the adversarial quoting patterns that deceived linear classifiers.
+3. **The Out-of-the-Box Gap**: Zero-shot NLI mapping ($52.30\%$) showed only marginal improvement over chance, underscoring that generalized natural language inference corpora (MultiNLI, SNLI) do not directly transfer to the idiosyncratic dialectics of debate portals without domain-specific fine-tuning.
 
 ---
 
-## 6. Summary of Findings & Next Research Directions
+## 6. Computational Framework & Cloud Integration
 
-### Key Takeaways
-1. Traditional rule-based classifiers ($49.20\%$) and sentiment polarity proxies ($50.40\%$) do not exceed random guessing on the args.me corpus.
-2. Classical machine learning (TF-IDF + Logistic Regression, SVM, Random Forests) achieves a strict performance ceiling of $51.0\% - 54.9\%$ in-domain and $57.8\%$ out-of-domain.
-3. Discourse peculiarities—most notably adversary quoting and topic-specific vocabulary—render shallow bag-of-words representations inherently brittle for debate mining.
+The cross-encoder experiments substantiate the dual-environment architecture between local workstations and Google Colaboratory:
 
-### Next Steps & Model Roadmap
-1. **Transformer Cross-Encoders**: Fine-tune cross-encoder architectures (`microsoft/deberta-v3-base` or `roberta-large`) taking `[CLS] Topic [SEP] Premise [SEP]` inputs to capture bidirectional premise-conclusion entailment.
-2. **Argument Quality & Stance Co-Modeling**: Evaluate whether premise rhetorical length and structural complexity correlate with classification confidence.
-3. **Retrieval-Augmented Benchmarks**: Benchmark stance-aware argument retrieval using dense embeddings (e.g., BGE, Contriever).
+1. **Google Colaboratory REST API (`colaboratory.googleapis.com`)**: Programmatic lifecycle management of cloud execution runtimes (`src/colab_api.py`).
+2. **Dynamic Cloud Execution**: Workflows in `notebooks/` feature automated runtime detection (`in_colab()`), dependency provisioning, hardware-accelerator allocation (NVIDIA T4 GPUs), and automatic repository synchronization (`git clone https://github.com/dustinober1/Arg_Me.git`).
+
+---
+
+## 7. Summary of Findings & Next Research Directions
+
+### Key Findings
+1. Rule-based ($49.20\%$) and pure sentiment ($50.40\%$) methods fail completely due to the inherent orthogonality of emotional affect and argumentative stance.
+2. Classical TF-IDF and feature engineering models plateau strictly at $51.0\% - 54.9\%$, hindered by adversarial quoting traps and lack of relational grounding.
+3. Transformer cross-encoders (`roberta-base`) successfully break this ceiling (**$58.90\%$ accuracy, $0.6265$ ROC-AUC**), demonstrating the necessity of joint bidirectional cross-attention.
+4. Numerical stability is architecture-dependent: standard DeBERTa-v3 small exhibited acute gradient breakdown ($\text{loss} \to \text{NaN}$), while `roberta-base` converged stably.
+
+### Next Steps & Research Roadmap
+1. **Larger Scale Fine-Tuning & Learning Rate Warmup**: Scale from 2 to 4 epochs on `roberta-base` with cosine annealing and gradient accumulation.
+2. **Stance-Aware Argument Retrieval**: Utilize dense bi-encoder embeddings (e.g., BGE, Contriever) paired with the fine-tuned RoBERTa cross-encoder as a stage-2 re-ranker for the args.me search task.
+3. **LLM In-Context Reasoning**: Benchmark zero-shot vs. chain-of-thought prompting on open-weight LLMs (Llama 3, Gemma 2, Mistral) as a third paradigm comparison.
 
 ---
 
@@ -201,5 +240,7 @@ To bridge the performance gap revealed by classical baselines, future modeling r
 3. Mohammad, S., Kiritchenko, S., Sobhani, P., Zhu, X., & Cherry, C. (2016). *SemEval-2016 Task 6: Detecting Stance in Tweets*. In *Proceedings of the 10th International Workshop on Semantic Evaluation (SemEval-2016)*, 31–41.
 4. Schiller, B., Daxenberger, E., & Gurevych, I. (2021). *Stance Detection Benchmark: How Robust Is Your Stance Detection?* *KBS: Knowledge-Based Systems*, 213, 106536.
 5. Hutto, C., & Gilbert, E. (2014). *VADER: A Parsimonious Rule-Based Model for Sentiment Analysis of Social Media Text*. In *Eighth International AAAI Conference on Weblogs and Social Media*.
-6. Wolf, T., Debut, L., Sanh, V., Chaumond, J., Delangue, C., Moi, A., ... & Rush, A. M. (2020). *Transformers: State-of-the-Art Natural Language Processing*. In *Proceedings of the 2020 EMNLP: System Demonstrations*, 38–45.
+6. Liu, Y., Ott, M., Goyal, N., Du, J., Joshi, M., Chen, D., ... & Stoyanov, V. (2019). *RoBERTa: A Robustly Optimized BERT Pretraining Approach*. *arXiv preprint arXiv:1907.11692*.
+7. Wolf, T., Debut, L., Sanh, V., Chaumond, J., Delangue, C., Moi, A., ... & Rush, A. M. (2020). *Transformers: State-of-the-Art Natural Language Processing*. In *Proceedings of the 2020 EMNLP: System Demonstrations*, 38–45.
+
 

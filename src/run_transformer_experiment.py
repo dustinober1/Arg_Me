@@ -64,13 +64,12 @@ def run_transformer_benchmark():
     except Exception as e:
         print(f"Zero-shot NLI evaluation encountered notice: {e}")
 
-    # 2. Fine-Tuned DeBERTa-v3 Cross-Encoder
+    # 2. Fine-Tuned RoBERTa-base Cross-Encoder
     print("\n" + "=" * 80)
-    print("PHASE 2: FINE-TUNING DEBERTA-V3 CROSS-ENCODER (2 Epochs, lr=2e-5)")
+    print("PHASE 2: FINE-TUNING ROBERTA-BASE CROSS-ENCODER (2 Epochs, lr=2e-5)")
     print("=" * 80)
-    # We use max_length=160 and batch_size=16 for optimal MPS / GPU throughput
     cross_encoder = TransformerStanceCrossEncoder(
-        model_name="microsoft/deberta-v3-small",
+        model_name="roberta-base",
         max_length=160,
         batch_size=16,
         learning_rate=2e-5,

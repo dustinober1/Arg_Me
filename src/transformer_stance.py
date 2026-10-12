@@ -116,7 +116,7 @@ class TransformerStanceCrossEncoder:
 
     def __init__(
         self,
-        model_name: str = "microsoft/deberta-v3-small",
+        model_name: str = "roberta-base",
         num_labels: int = 2,
         max_length: int = 256,
         batch_size: int = 16,
