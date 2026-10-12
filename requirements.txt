@@ -30,6 +30,8 @@ transformers>=4.40.0
 accelerate>=0.30.0
 sentencepiece>=0.2.0
 tiktoken>=0.7.0
+dspy>=2.5.0
+
 
 
 # Environment & Utilities
