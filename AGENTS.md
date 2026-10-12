@@ -79,7 +79,20 @@ This repository is designed to operate seamlessly across local development and G
 
 ### B. Notebooks for Colab (`notebooks/`)
 - All notebooks in `notebooks/` feature runtime detection (`in_colab()`), automated dependency installs when run in Colab, and integration with Colab Secrets / Google Drive mounting.
-- Notebook entry point: `notebooks/01_args_me_exploration.ipynb`.
+- **Repository Cloning Mandate (Notebooks `03` Forward)**: All Colab notebooks starting from `03` forward MUST automatically clone `https://github.com/dustinober1/Arg_Me.git` into `/content/Arg_Me` and set the working directory / `sys.path` when running inside Google Colab:
+  ```python
+  IN_COLAB = "google.colab" in sys.modules or os.path.exists("/content")
+  if IN_COLAB:
+      !pip install -q datasets huggingface_hub pandas pyarrow scikit-learn torch transformers accelerate sentencepiece tiktoken
+      if not os.path.exists("Arg_Me"):
+          !git clone https://github.com/dustinober1/Arg_Me.git
+      %cd Arg_Me
+      import sys
+      if "/content/Arg_Me" not in sys.path:
+          sys.path.insert(0, "/content/Arg_Me")
+  ```
+- Notebook entry points: `notebooks/01_args_me_exploration.ipynb`, `notebooks/02_traditional_nlp_stance_prediction.ipynb`, `notebooks/03_transformer_cross_encoder_stance.ipynb`.
+
 
 ---
 
