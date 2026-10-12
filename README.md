@@ -37,15 +37,15 @@ Run the sample loader to stream 100 debate arguments and persist a local parquet
 python src/dataset_loader.py
 ```
 
-### 4. Interactive Notebooks
+### 4. Interactive Notebooks & Academic Report
 
-Launch Jupyter to explore the dataset interactively:
+- **Interactive Exploration**: Launch Jupyter to explore the dataset interactively:
+  ```bash
+  jupyter lab
+  ```
+  Open `notebooks/01_args_me_exploration.ipynb`.
+- **Academic Findings Report**: See [`report/academic_report.md`](report/academic_report.md) for the living, academic-style paper tracking all empirical findings, schema analyses, and model evaluations as research progresses.
 
-```bash
-jupyter lab
-```
-
-Open `notebooks/01_args_me_exploration.ipynb`.
 
 ---
 

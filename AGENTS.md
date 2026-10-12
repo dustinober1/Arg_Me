@@ -99,6 +99,8 @@ Arg_Me/
 │   └── args_me_sample.parquet
 ├── notebooks/
 │   └── 01_args_me_exploration.ipynb
+├── report/
+│   └── academic_report.md # Living academic-style paper of all project findings
 └── src/
     ├── __init__.py
     ├── config.py         # Global settings & environment loader
@@ -130,13 +132,31 @@ Copy `.env.example` to `.env`:
 
 ---
 
-## 5. Agent Instructions & Operational Rules
+## 5. Academic Report Mandate (`report/academic_report.md`)
 
-1. **Keep large files out of git**:
+All research, exploratory findings, architectural insights, and modeling experiments must be progressively documented in **[`report/academic_report.md`](file:///Users/dustinober/Projects/Data_Science/Arg_Me/report/academic_report.md)** as work unfolds.
+
+### Standards & Guidelines:
+1. **Academic Tone & Rigor**: Written as a formal research paper/technical report (Abstract, Introduction, Data Architecture & Ingestion, Empirical Findings & Metrics, Discussion, Limitations & Future Work, References).
+2. **Continuous Updates as We Go**:
+   - Whenever new empirical distributions, stance metrics, or token statistics are generated, update the empirical tables and figures in the report.
+   - When new models, embeddings, or retrieval algorithms are benchmarked, record hypotheses, experimental setups, quantitative results, and qualitative error analyses.
+   - Document technical challenges, algorithmic optimizations, and theoretical implications.
+3. **Citations & References**: Maintain academic citations (e.g. Wachsmuth et al., Ajjour et al., CLEF/Argument Mining literature) in standard scholarly format.
+4. **Reproducibility**: Explicitly record data subsets, random seeds, sample sizes, and hyperparameter configurations.
+
+---
+
+## 6. Agent Instructions & Operational Rules
+
+1. **Continuous Academic Documentation**:
+   - Every analytical step or empirical result MUST be synthesized and integrated into [`report/academic_report.md`](file:///Users/dustinober/Projects/Data_Science/Arg_Me/report/academic_report.md).
+2. **Keep large files out of git**:
    - `data/`, raw JSONL files, large Parquet outputs, and `.env` credentials must never be committed.
-2. **Prioritize streaming for fast iterations**:
+3. **Prioritize streaming for fast iterations**:
    - When exploring or testing new functions, stream small batches (`n_records=100` or `500`) instead of downloading the entire ~850MB JSONL file.
-3. **Colab compatibility**:
+4. **Colab compatibility**:
    - Ensure scripts and notebooks can run without errors both in a local virtual environment and in Colab environments (`in_colab()` checks).
-4. **Code Quality**:
+5. **Code Quality**:
    - Keep functions modular, type-annotated, and documented.
+
