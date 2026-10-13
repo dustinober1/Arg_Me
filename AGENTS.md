@@ -91,7 +91,16 @@ This repository is designed to operate seamlessly across local development and G
       if "/content/Arg_Me" not in sys.path:
           sys.path.insert(0, "/content/Arg_Me")
   ```
-- Notebook entry points: `notebooks/01_args_me_exploration.ipynb`, `notebooks/02_traditional_nlp_stance_prediction.ipynb`, `notebooks/03_transformer_cross_encoder_stance.ipynb`.
+- Notebook entry points: 
+  - `notebooks/01_args_me_exploration.ipynb`
+  - `notebooks/02_traditional_nlp_stance_prediction.ipynb`
+  - `notebooks/03_transformer_cross_encoder_stance.ipynb`
+  - `notebooks/04_tev1_decision_model_stance.ipynb`
+  - `notebooks/05_dspy_tev1_advanced_pipeline.ipynb`
+  - `notebooks/06_nimble_9b_decision_model_stance.ipynb`
+  - `notebooks/07_nimble_9b_dspy_optimization.ipynb`
+  - `notebooks/08_dspy_mipro_copro_optimization.ipynb`
+  - `notebooks/09_overnight_large_scale_dspy_mipro.ipynb`
 
 
 ---

@@ -347,29 +347,69 @@ class NimbleStancePredictor(dspy.Module):
         sample_size: Optional[int] = None,
         random_state: int = 42,
         pipeline_title: str = "Nimble Stance Predictor",
+        checkpoint_path: Optional[str] = None,
+        checkpoint_interval: int = 50,
     ) -> Tuple[EvaluationMetrics, pd.DataFrame]:
-        """Benchmark pipeline accuracy, F1, ROC-AUC and latency across a test DataFrame."""
+        """
+        Benchmark pipeline accuracy, F1, ROC-AUC and latency across a DataFrame.
+        Supports automatic checkpointing and resuming from intermediate files for long/overnight runs.
+        """
         eval_df = df.copy()
         if sample_size and len(eval_df) > sample_size:
             eval_df = eval_df.sample(sample_size, random_state=random_state).reset_index(drop=True)
 
-        preds = []
-        pro_probs = []
-        confidences = []
-        latencies = []
+        n_total = len(eval_df)
+        preds = [None] * n_total
+        pro_probs = [0.5] * n_total
+        confidences = [0.0] * n_total
+        latencies = [0.0] * n_total
 
-        for _, row in tqdm(eval_df.iterrows(), total=len(eval_df), desc=f"Evaluating {pipeline_title}"):
+        start_idx = 0
+        # Check for existing checkpoint to resume from
+        if checkpoint_path and os.path.exists(checkpoint_path):
+            try:
+                ckpt_df = pd.read_parquet(checkpoint_path)
+                completed = len(ckpt_df)
+                if completed > 0 and completed <= n_total:
+                    print(f"Resuming from checkpoint '{checkpoint_path}': {completed}/{n_total} records already scored.")
+                    for j in range(completed):
+                        preds[j] = ckpt_df.iloc[j]["pred_stance"]
+                        pro_probs[j] = float(ckpt_df.iloc[j]["pro_prob"])
+                        confidences[j] = float(ckpt_df.iloc[j]["confidence"])
+                        latencies[j] = float(ckpt_df.iloc[j]["latency_ms"])
+                    start_idx = completed
+            except Exception as e:
+                print(f"Warning: Could not load checkpoint ({e}), starting from beginning.")
+
+        for i in tqdm(range(start_idx, n_total), initial=start_idx, total=n_total, desc=f"Evaluating {pipeline_title}"):
+            row = eval_df.iloc[i]
             pred = self.forward(str(row["conclusion"]), str(row["premise_text"]))
-            preds.append(pred.stance)
-            pro_probs.append(pred.pro_prob)
-            confidences.append(pred.confidence)
-            latencies.append(pred.latency_ms)
+            preds[i] = pred.stance
+            pro_probs[i] = pred.pro_prob
+            confidences[i] = pred.confidence
+            latencies[i] = pred.latency_ms
+
+            # Periodic checkpoint save
+            if checkpoint_path and (i + 1) % checkpoint_interval == 0:
+                interim_df = eval_df.iloc[: i + 1].copy()
+                interim_df["pred_stance"] = preds[: i + 1]
+                interim_df["pro_prob"] = pro_probs[: i + 1]
+                interim_df["confidence"] = confidences[: i + 1]
+                interim_df["latency_ms"] = latencies[: i + 1]
+                interim_df["is_correct"] = interim_df["stance"] == interim_df["pred_stance"]
+                os.makedirs(os.path.dirname(os.path.abspath(checkpoint_path)), exist_ok=True)
+                interim_df.to_parquet(checkpoint_path, index=False)
 
         eval_df["pred_stance"] = preds
         eval_df["pro_prob"] = pro_probs
         eval_df["confidence"] = confidences
         eval_df["latency_ms"] = latencies
         eval_df["is_correct"] = eval_df["stance"] == eval_df["pred_stance"]
+
+        # Final checkpoint save
+        if checkpoint_path:
+            os.makedirs(os.path.dirname(os.path.abspath(checkpoint_path)), exist_ok=True)
+            eval_df.to_parquet(checkpoint_path, index=False)
 
         y_true = eval_df["stance"].values
         y_pred = np.array(preds)
