@@ -101,6 +101,7 @@ This repository is designed to operate seamlessly across local development and G
   - `notebooks/07_nimble_9b_dspy_optimization.ipynb`
   - `notebooks/08_dspy_mipro_copro_optimization.ipynb`
   - `notebooks/09_overnight_large_scale_dspy_mipro.ipynb`
+  - `notebooks/10_advanced_frontiers_args_me.ipynb`
 
 
 ---
