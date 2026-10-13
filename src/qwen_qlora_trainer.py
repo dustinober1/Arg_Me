@@ -51,8 +51,10 @@ def build_training_dataset(
     Constructs a balanced train and test set from cleaned argument data,
     optionally upsampling mined hard negatives from the curriculum.
     """
-    # Ensure binary stance
-    clean_df = df[df["stance"].isin(["PRO", "CON"])].copy()
+    # Ensure binary stance and uppercase normalization
+    clean_df = df.copy()
+    clean_df["stance"] = clean_df["stance"].astype(str).str.strip().str.upper()
+    clean_df = clean_df[clean_df["stance"].isin(["PRO", "CON"])].copy()
 
     # Stratified split
     train_df, test_df = train_test_split(
@@ -62,7 +64,9 @@ def build_training_dataset(
 
     # Integrate hard negative curriculum if supplied
     if hard_negatives_df is not None and not hard_negatives_df.empty:
-        hn_clean = hard_negatives_df[hard_negatives_df["stance"].isin(["PRO", "CON"])].copy()
+        hn_clean = hard_negatives_df.copy()
+        hn_clean["stance"] = hn_clean["stance"].astype(str).str.strip().str.upper()
+        hn_clean = hn_clean[hn_clean["stance"].isin(["PRO", "CON"])].copy()
         # Replicate hard negatives to emphasize difficult decision boundaries
         replicated_hn = pd.concat([hn_clean] * hard_negative_weight, ignore_index=True)
         train_df = pd.concat([train_df, replicated_hn], ignore_index=True).sample(
@@ -79,7 +83,7 @@ def prepare_hf_conversations(df: pd.DataFrame) -> List[Dict[str, Any]]:
         messages = format_chat_record(
             conclusion=str(row["conclusion"]),
             premise_text=str(row["premise_text"]),
-            stance=str(row["stance"]),
+            stance=str(row["stance"]).strip().upper(),
         )
         records.append({"messages": messages})
     return records
@@ -87,7 +91,8 @@ def prepare_hf_conversations(df: pd.DataFrame) -> List[Dict[str, Any]]:
 
 def parse_stance_prediction(text: str) -> str:
     """Robustly extract PRO or CON from model generated response."""
-    match = re.search(r"\[\[(PRO|CON)\]\]", text, re.IGNORECASE)
+    # Match [[PRO]], [[CON]], [PRO], [CON], or standalone tokens
+    match = re.search(r"\[+ *(PRO|CON) *\]+", text, re.IGNORECASE)
     if match:
         return match.group(1).upper()
     
@@ -104,7 +109,10 @@ def parse_stance_prediction(text: str) -> str:
 
 def compute_stance_metrics(y_true: List[str], y_pred: List[str]) -> Dict[str, float]:
     """Compute classification metrics for binary stance predictions."""
-    valid_pairs = [(t, p) for t, p in zip(y_true, y_pred) if p in ["PRO", "CON"]]
+    norm_true = [str(t).strip().upper() for t in y_true]
+    norm_pred = [str(p).strip().upper() for p in y_pred]
+
+    valid_pairs = [(t, p) for t, p in zip(norm_true, norm_pred) if p in ["PRO", "CON"]]
     if not valid_pairs:
         return {"accuracy": 0.0, "pro_f1": 0.0, "con_f1": 0.0, "macro_f1": 0.0}
 
