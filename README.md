@@ -51,6 +51,7 @@ python src/dataset_loader.py
   - `notebooks/09_overnight_large_scale_dspy_mipro.ipynb`: Overnight evaluation across $2,100$ debate arguments.
   - `notebooks/10_advanced_frontiers_args_me.ipynb`: Corpus hygiene, mixture-of-judges, and retrieval engine.
   - `notebooks/11_active_learning_hard_negative_mining.ipynb`: Active learning uncertainty screening & hard-negative curriculum mining.
+  - `notebooks/12_qlora_qwen_stance_tuning.ipynb`: QLoRA parameter-efficient fine-tuning on Qwen 2.5 with hard-negative curriculum.
 - **Academic Findings Report**: See [`report/academic_report.md`](report/academic_report.md) for the living, academic-style paper tracking all empirical findings, schema analyses, and model evaluations as research progresses.
 
 

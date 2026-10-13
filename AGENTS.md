@@ -103,6 +103,7 @@ This repository is designed to operate seamlessly across local development and G
   - `notebooks/09_overnight_large_scale_dspy_mipro.ipynb`
   - `notebooks/10_advanced_frontiers_args_me.ipynb`
   - `notebooks/11_active_learning_hard_negative_mining.ipynb`
+  - `notebooks/12_qlora_qwen_stance_tuning.ipynb`
 
 
 ---
