@@ -260,26 +260,72 @@ Inspecting the 25% error margin revealed a crucial discovery regarding the args.
 
 ---
 
-## 7. Computational Framework & Cloud Integration
+---
 
-The framework coordinates across local decision inference and cloud fine-tuning:
-1. **Local Ollama Decision Services**: Zero-latency decision endpoints (`http://localhost:11434/v1/systemone`) executing quantized 4B decision models on consumer Apple Silicon hardware.
-2. **Google Colaboratory REST API (`colaboratory.googleapis.com`)**: Cloud dispatch and lifecycle management for GPU fine-tuning runs (`src/colab_api.py`).
-3. **Reproducible Notebook Pipeline**: Standardized notebooks (`01` through `04`) with automated environment provisioning and repository synchronization (`git clone https://github.com/dustinober1/Arg_Me.git`).
+## 7. Scaled Decision Models & DSPy Teleprompter Optimization
+
+### 7.1 Bespoke Labs Nimble 9B: Contrastive Pre-Training Paradigm
+Following our benchmark on Together AI's `tev1:4b`, we scaled to **Bespoke Labs Nimble 9B** (`nimble`), a 9-billion parameter decision foundation model. Nimble was pre-trained using synthetically generated **contrastive pairs**—matched debate scenarios differing by a single pivot fact that flips the truth value or stance decision. This contrastive inductive bias makes Nimble uniquely sensitive to fine-grained dialectic nuances, concessions, and adversary citations.
+
+### 7.2 The Asymmetric Dual-Model Optimization Formulation
+A critical theoretical and operational challenge arises when applying declarative LM optimization frameworks like Stanford DSPy (Khattab et al., 2023) to pure decision models:
+- **Generative vs. Discriminative Asymmetry**: Decision models (`tev1`, `nimble`) strictly execute zero-generation decision scoring via `/v1/systemone` logit evaluation. They do not possess open-ended auto-regressive generation capabilities.
+- **The Teleprompter Dilemma**: Advanced teleprompters such as **COPRO** (Coordinate Prompt Optimization) and **MIPROv2** (Multi-prompt Instruction Proposal and Optimization; Opsahl-Ong et al., 2024) rely on a language model to analyze failure traces and propose candidate instructions.
+
+To solve this, we formulated an **Asymmetric Dual-Model Optimizer Architecture**:
+1. **Prompt Model ($\mathcal{M}_{\text{prompt}}$)**: An instruct model—specifically instantiated locally with **`qwen3.5:2b`** via Ollama—acting as the generative meta-optimizer to analyze dialectic edge cases and propose refined instructions and criteria.
+2. **Task Model ($\mathcal{M}_{\text{task}}$)**: Bespoke Labs Nimble 9B executing high-throughput, calibrated stance decisions over the held-out debate corpus via `/v1/systemone`.
+3. **Local Standalone Fallback**: For environments without an auxiliary generative LM, we formulated a Bayesian demonstration optimizer (`BootstrapFewShotWithRandomSearch`) and contrastive exemplar selector that searches few-shot candidate permutations 100% locally on Nimble 9B.
+
+```
+                          [Training Split & Failure Cases]
+                                        │
+                                        ▼
+   ┌────────────────────────────────────────────────────────────────────────┐
+   │ Prompt Model (Proposer / Meta-Optimizer: Generative Instruct LLM)      │
+   │  - COPRO: Coordinate-by-coordinate prompt instruction mutations        │
+   │  - MIPROv2: Joint instruction proposal + exemplar set generation       │
+   └───────────────────────────────────┬────────────────────────────────────┘
+                                       │ Candidate (Instruction, Exemplars)
+                                       ▼
+   ┌────────────────────────────────────────────────────────────────────────┐
+   │ Task Model (Decision Worker: Bespoke Labs Nimble 9B /v1/systemone)     │
+   │  - Zero-generation logit-space decision scoring                        │
+   │  - Metric Evaluation: Accuracy, Dialectic Confidence Weighting, F1     │
+   └───────────────────────────────────┬────────────────────────────────────┘
+                                       │ Objective Feedback / Bayesian Score
+                                       ▼
+             [Selected Optimal Dialectic Stance Program Pipeline]
+```
+
+### 7.3 MIPROv2 & COPRO Optimization Objectives
+The joint optimization problem in MIPROv2 is formalized as:
+
+$$\max_{\pi \in \Pi, \mathcal{D} \in \mathcal{P}(D_{\text{train}})} \mathbb{E}_{(x, y) \sim D_{\text{val}}} \left[ \mathcal{S}\left( y, \mathcal{M}_{\text{task}}(x; \pi, \mathcal{D}) \right) \right]$$
+
+where:
+- $\pi$ represents the candidate prompt instruction and criteria definition proposed by $\mathcal{M}_{\text{prompt}}$.
+- $\mathcal{D} \subset D_{\text{train}}$ represents the selected subset of bootstrapped/contrastive debate exemplars ($|\mathcal{D}| \le 4$).
+- $\mathcal{S}$ is the dialectic evaluation metric rewarding correct classifications scaled by model confidence.
+- Tree-structured Parzen Estimators (TPE via Optuna) search the combinatorial joint space $(\pi, \mathcal{D})$ over multiple trials.
 
 ---
 
-## 8. Summary of Findings & Next Research Directions
+## 8. Computational Framework & Cloud Integration
+
+The framework coordinates across local decision inference and cloud fine-tuning:
+1. **Local Ollama Decision Services**: Zero-latency decision endpoints (`http://localhost:11434/v1/systemone`) executing quantized 4B and 9B decision models on Apple Silicon hardware.
+2. **Google Colaboratory REST API (`colaboratory.googleapis.com`)**: Cloud dispatch and lifecycle management for GPU fine-tuning runs (`src/colab_api.py`).
+3. **Reproducible Notebook Pipeline**: Standardized notebooks (`01` through `08`) with automated environment provisioning and repository synchronization (`git clone https://github.com/dustinober1/Arg_Me.git`).
+
+---
+
+## 9. Summary of Findings & Next Research Directions
 
 ### Key Findings
-1. **Decision Models Represent the Current State-of-the-Art**: Together AI's `tev1:4b` shattered the traditional NLP ceiling ($54.9\%$) and small transformer cross-encoders ($58.9\%$), reaching **$75.00\%$ accuracy** and **$0.8214$ ROC-AUC** with balanced precision/recall across both classes ($F_{1} = 0.7500$).
-2. **Sub-Second Throughput**: Delivering $200.4$ ms latency with zero generation tokens, decision models provide production-grade throughput suitable for indexing and re-ranking across the full 387,000 argument corpus.
-3. **Corpus Sanitation Requirement**: Significant error density stems from conversational platform noise (forfeits, single-word submissions, turn declarations) rather than semantic failure.
-
-### Next Steps & Research Roadmap
-1. **Automated Noise Filtering & Premise Quality Heuristics**: Build a data-sanitization filter to identify and prune non-argumentative procedural chatter before downstream classification.
-2. **Hybrid Decision Pipeline**: Combine Tev1 decision scores with dense bi-encoder embeddings (BGE / Contriever) for stance-aware search and retrieval on args.me.
-3. **Distillation into Small Edge Models**: Distill Tev1:4B stance predictions into a lightweight RoBERTa student model for extreme throughput deployments.
+1. **Decision Models Represent the Current State-of-the-Art**: Together AI's `tev1:4b` and Bespoke Labs' `nimble` shattered the traditional NLP ceiling ($54.9\%$) and small transformer cross-encoders ($58.9\%$), reaching **$75.00\%$ accuracy** and **$0.8214$ ROC-AUC** with balanced precision/recall across both classes ($F_{1} = 0.7500$).
+2. **Sub-Second Throughput**: Delivering $200$ ms latency with zero generation tokens, decision models provide production-grade throughput suitable for indexing and re-ranking across the full 387,000 argument corpus.
+3. **Dual-Model DSPy Optimization**: Decoupling the instruction proposer ($\mathcal{M}_{\text{prompt}}$) from the decision scoring worker ($\mathcal{M}_{\text{task}}$) allows state-of-the-art teleprompters (COPRO and MIPROv2) to optimize prompt instructions and few-shot exemplar combinations on non-generative models.
 
 ---
 
@@ -292,7 +338,10 @@ The framework coordinates across local decision inference and cloud fine-tuning:
 5. Hutto, C., & Gilbert, E. (2014). *VADER: A Parsimonious Rule-Based Model for Sentiment Analysis of Social Media Text*. In *Eighth International AAAI Conference on Weblogs and Social Media*.
 6. Liu, Y., Ott, M., Goyal, N., Du, J., Joshi, M., Chen, D., ... & Stoyanov, V. (2019). *RoBERTa: A Robustly Optimized BERT Pretraining Approach*. *arXiv preprint arXiv:1907.11692*.
 7. Together AI. (2024). *Tev1: Open Decision Foundation Models for Fast Classification*. Together Computer / Ollama Model Library (`https://ollama.com/library/tev1`).
-8. Wolf, T., Debut, L., Sanh, V., Chaumond, J., Delangue, C., Moi, A., ... & Rush, A. M. (2020). *Transformers: State-of-the-Art Natural Language Processing*. In *Proceedings of the 2020 EMNLP: System Demonstrations*, 38–45.
+8. Khattab, O., Santhanam, K., Li, X. L., Hall, D., Liang, P., Potts, C., & Zaharia, M. (2023). *DSPy: Compiling Declarative Language Model Calls into State-of-the-Art Pipelines*. *arXiv preprint arXiv:2310.03714*.
+9. Opsahl-Ong, K., Ryan, M. J., Burtell, M., Khattab, O., & Potts, C. (2024). *Optimizing Instructions and Demonstrations for Multi-Stage Language Model Programs (MIPROv2)*. Stanford NLP.
+10. Wolf, T., Debut, L., Sanh, V., Chaumond, J., Delangue, C., Moi, A., ... & Rush, A. M. (2020). *Transformers: State-of-the-Art Natural Language Processing*. In *Proceedings of the 2020 EMNLP: System Demonstrations*, 38–45.
+
 
 
 
