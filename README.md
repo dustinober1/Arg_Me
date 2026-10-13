@@ -39,11 +39,18 @@ python src/dataset_loader.py
 
 ### 4. Interactive Notebooks & Academic Report
 
-- **Interactive Exploration**: Launch Jupyter to explore the dataset interactively:
-  ```bash
-  jupyter lab
-  ```
-  Open `notebooks/01_args_me_exploration.ipynb`.
+- **Interactive Exploration & Modeling Pipelines**:
+  - `notebooks/01_args_me_exploration.ipynb`: Corpus schema and lexical distribution.
+  - `notebooks/02_traditional_nlp_stance_prediction.ipynb`: TF-IDF, sentiment, and linear models.
+  - `notebooks/03_transformer_cross_encoder_stance.ipynb`: RoBERTa cross-encoder stance classifier.
+  - `notebooks/04_tev1_decision_model_stance.ipynb`: Together AI Tev1:4B zero-shot decision benchmark.
+  - `notebooks/05_dspy_tev1_advanced_pipeline.ipynb`: DSPy declarative reasoning pipeline.
+  - `notebooks/06_nimble_9b_decision_model_stance.ipynb`: Bespoke Labs Nimble 9B decision benchmark.
+  - `notebooks/07_nimble_9b_dspy_optimization.ipynb`: Few-shot contrastive bootstrap optimization.
+  - `notebooks/08_dspy_mipro_copro_optimization.ipynb`: Dual-model Qwen-COPRO & Qwen-MIPROv2 optimizer.
+  - `notebooks/09_overnight_large_scale_dspy_mipro.ipynb`: Overnight evaluation across $2,100$ debate arguments.
+  - `notebooks/10_advanced_frontiers_args_me.ipynb`: Corpus hygiene, mixture-of-judges, and retrieval engine.
+  - `notebooks/11_active_learning_hard_negative_mining.ipynb`: Active learning uncertainty screening & hard-negative curriculum mining.
 - **Academic Findings Report**: See [`report/academic_report.md`](report/academic_report.md) for the living, academic-style paper tracking all empirical findings, schema analyses, and model evaluations as research progresses.
 
 

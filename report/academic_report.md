@@ -406,22 +406,97 @@ To explore resource-constrained deployment, we distilled continuous soft probabi
 
 ---
 
-## 9. Computational Framework & Cloud Integration
+## 9. Active Learning, Uncertainty Sampling & Hard-Negative Mining Across args.me
+
+### 9.1 The Long Tail of Dialectical Argumentation
+Standard random evaluation obscures the tail distribution of complex debates. To systematically uncover the hardest dialectical edge cases across the ~387,000 arguments in `webis/args_me`, we developed an **Active Learning & Uncertainty Mining Framework** ([`src/active_learning_miner.py`](file:///Users/dustinober/Projects/Data_Science/Arg_Me/src/active_learning_miner.py)):
+
+1. **Information-Theoretic Uncertainty Screening**:
+   - **Shannon Entropy**: $\mathcal{H}(x) = - \sum_{y \in \{\text{PRO}, \text{CON}\}} P(y \mid x) \log_2 P(y \mid x)$, bounding model doubt between $0.0$ bits (certain) and $1.0$ bit (maximal doubt).
+   - **Margin Sampling**: $\mathcal{M}(x) = |P(\text{PRO} \mid x) - P(\text{CON} \mid x)|$.
+   - **Least Confidence**: $\mathcal{LC}(x) = 1.0 - \max(P(\text{PRO} \mid x), P(\text{CON} \mid x))$.
+
+2. **Dialectical Error Taxonomy**:
+   Arguments flagged via entropy thresholds ($\mathcal{H} \ge 0.85$) or model disagreements are taxonomically classified into six primary dialectic challenge categories:
+   - `adversarial_quoting_trap`: Author quotes extensive opponent claims before issuing a compact counter-thesis.
+   - `concession_complexity`: Debater concedes a subsidiary factual contention (`"I concede that nuclear power emits zero carbon..."`) while maintaining overall opposition to the resolution.
+   - `high_confidence_contradiction`: Semantic inversions, irony, double negations, or ground-truth annotation discordances ($P > 0.70$ yet discordant with label).
+   - `high_entropy_dilemma`: Balanced arguments or ambiguous moral propositions where continuous logits settle near equal parity ($P \approx 0.50$, $\mathcal{H} \approx 1.00$).
+   - `dialectical_anomaly`: Stylistic quirks, pop-culture debate idioms, or non-standard rhetorical structures.
+   - `standard_example`: Borderline standard arguments positioned immediately adjacent to the decision boundary.
+
+3. **Active Curriculum Construction**:
+   Streaming directly from the Hugging Face Hub (`webis/args_me`), the pipeline filters non-substantive noise and extracts prioritized hard-negative curricula, enabling targeted few-shot exemplar injection and contrastive fine-tuning.
+
+### 9.2 Empirical Active Learning Results & Dialectical Taxonomy Analysis
+
+We executed the active uncertainty scan on the args.me corpus using Bespoke Labs Nimble 9B as the uncertainty screener ([`notebooks/11_active_learning_hard_negative_mining.ipynb`](file:///Users/dustinober/Projects/Data_Science/Arg_Me/notebooks/11_active_learning_hard_negative_mining.ipynb)). Screening operated at **$2.32\text{ it/s}$** on local Apple Silicon hardware.
+
+#### 1. Screening Distribution & Discovery Rate
+
+Across $100$ candidate arguments, after pruning $4\%$ procedural noise entries via `src/argument_hygiene.py`, the miner screened **$96$ substantive arguments**, identifying **$32$ hard cases ($33.33\%$)**:
+
+| Metric | Screened Value | Dialectical Interpretation |
+| :--- | :---: | :--- |
+| **Total Arguments Screened** | **96** | Pure substantive debate arguments evaluated. |
+| **Throughput** | **2.32 it/s** | ~43 seconds total run time on quantized 9B decision model. |
+| **Mean Shannon Entropy ($\mathcal{H}$)** | **0.3326 bits** | Overall corpus confidence is high, but skewed by a heavy uncertainty tail. |
+| **Hard Cases Discovered** | **32 / 96 (33.33%)** | Exactly one-third of arguments present extreme uncertainty or error. |
+| **Curriculum Output** | `hard_negatives_curriculum.parquet` | Serialized 32-case hard challenge benchmark for curriculum learning. |
+
+#### 2. Dialectical Error Taxonomy Breakdown ($N = 32$)
+
+The $32$ mined hard cases were automatically mapped into dialectical categories:
+
+| Taxonomy Category | Count ($N=32$) | Frequency (%) | Mean Shannon Entropy ($\mathcal{H}$) | Core Dialectical Characteristic |
+| :--- | :---: | :---: | :---: | :--- |
+| `dialectical_anomaly` | **8** | **25.0%** | $0.7046$ bits | Unconventional syntax, colloquial idioms, rhetorical questions. |
+| `high_entropy_dilemma` | **7** | **21.9%** | **$0.9968$ bits** | Near-perfect uncertainty ($P \approx 0.50$); moral/factual parity or debate forfeits. |
+| `standard_example` | **6** | **18.8%** | $0.9333$ bits | Subtle claims lying directly along the decision boundary. |
+| `adversarial_quoting_trap` | **6** | **18.8%** | $0.4299$ bits | Premise dominated by quoted opponent text, misleading surface encoders. |
+| `high_confidence_contradiction` | **4** | **12.5%** | **$0.0742$ bits** | Model is highly confident ($P > 0.95$) yet discordant with ground truth. |
+| `concession_complexity` | **1** | **3.1%** | $0.9329$ bits | Local concession within an overall opposing stance. |
+
+#### 3. Qualitative Case Studies from the Mined Hard Negatives
+
+The active learning screen revealed several vivid debate edge cases illustrating why naive classifiers fail:
+
+1. **Procedural Standoff & Forfeit Dilemma (`high_entropy_dilemma`, $\mathcal{H} = 1.000$ bits)**:
+   - *Topic*: `"Spawn(any kind) vs Goku"`
+   - *Premise*: `"SPAWN WINS THISSPAWN WINS THISSPAWN WINS THISSPAWN WINS THISHE FORFEITED THIS ROUND BECUASESPAWN WINS THIS WOH..."`
+   - *Gold*: **PRO** | *Pred*: **PRO** ($P=0.50, \Delta=0.00$)
+   - *Analysis*: The argument contains zero substantive propositions, but the debater appeals to a forfeit round. Nimble 9B correctly senses maximum ambiguity ($\mathcal{H}=1.000$).
+
+2. **Refutational Turn Standoff (`high_entropy_dilemma`, $\mathcal{H} = 0.997$ bits)**:
+   - *Topic*: `"The matrix the best movie ever"`
+   - *Premise*: `"It is inherent in the text that my opponent presents that there is no argument to be found. As for his only reason why the matrix is the best..."`
+   - *Gold*: **CON** | *Pred*: **PRO** ($P=0.51, \mathcal{H}=0.997$)
+   - *Analysis*: The debater deconstructs the opponent's premise rather than formulating an independent anti-Matrix argument. The model splits its probability mass nearly 50/50, slightly favoring PRO due to the mention of affirmative reasons.
+
+3. **High-Confidence Ground-Truth Contradiction (`high_confidence_contradiction`, $\mathcal{H} = 0.074$ bits)**:
+   - *Analysis*: When debaters employ irony or quote resolutions with cynical inversions, the model predicts with near 99% confidence in one direction, directly clashing with the debate platform's binary vote assignment. These instances represent either severe rhetorical inversion or label noise in the original Debate.org crawl.
+
+#### 4. Streaming Hub Verification
+Using `src/dataset_loader.py` with `streaming=True`, the active miner verified that arguments can be screened directly from Hugging Face's `webis/args_me` repository without requiring local storage of the 845MB raw file. This ensures the active learning loop can scale out to screen tens of thousands of debate premises across distributed workers.
+
+---
+
+## 10. Computational Framework & Cloud Integration
 
 The framework coordinates across local decision inference and cloud fine-tuning:
 1. **Local Ollama Decision Services**: Zero-latency decision endpoints (`http://localhost:11434/v1/systemone`) executing quantized 4B and 9B decision models on Apple Silicon hardware with persistent auto-checkpointing.
 2. **Google Colaboratory REST API (`colaboratory.googleapis.com`)**: Cloud dispatch and lifecycle management for GPU fine-tuning runs (`src/colab_api.py`).
-3. **Reproducible Notebook Pipeline**: Standardized notebooks (`01` through `10`) with automated environment provisioning and repository synchronization (`git clone https://github.com/dustinober1/Arg_Me.git`).
+3. **Reproducible Notebook Pipeline**: Standardized notebooks (`01` through `11`) with automated environment provisioning and repository synchronization (`git clone https://github.com/dustinober1/Arg_Me.git`).
 
 ---
 
-## 10. Summary of Findings & Conclusion
+## 11. Summary of Findings & Conclusion
 
 ### Key Findings
 1. **Generalization at Scale ($N = 2,100$)**: In large-scale overnight evaluation, Qwen-COPRO achieved **$75.76\%$ accuracy** and Qwen-MIPROv2 achieved **$0.8625$ ROC-AUC**, substantially outperforming classical bag-of-words ($54.9\%$) and RoBERTa cross-encoders ($58.9\%$).
 2. **Complementary Optimization Dynamics**: COPRO excels at maximizing affirmative sensitivity (PRO recall $79.1\%$), whereas MIPROv2 excels at negative specificity (CON recall $78.7\%$) and probability rank calibration.
-3. **Adversarial Attributions Resolved**: Over 172 hard dialectic arguments misclassified by zero-shot models—particularly those involving direct opponent quotation or procedural discourse—were repaired through automated DSPy prompt optimization.
-4. **Holistic System Architecture**: Extending the framework across procedural noise filtering, mixture-of-judges ensembles, dual-column argument search, and edge distillation completes the end-to-end pipeline from raw scraped debates to high-throughput argument intelligence.
+3. **Consensus Reliability ($89.5\%$)**: Combining Tev1:4B and Nimble 9B in a Mixture-of-Judges ensemble yielded an inter-annotator Kappa of $\kappa = 0.5074$; when both models agree (76% of arguments), classification accuracy reaches **$89.5\%$**.
+4. **Active Learning & Tail Discovery**: Entropy and margin scanning over streaming args.me records successfully identifies adversarial quoting and concession complexities, replacing blind random evaluations with hard-negative active learning curricula.
 
 ---
 
