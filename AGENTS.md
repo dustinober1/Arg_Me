@@ -104,6 +104,7 @@ This repository is designed to operate seamlessly across local development and G
   - `notebooks/10_advanced_frontiers_args_me.ipynb`
   - `notebooks/11_active_learning_hard_negative_mining.ipynb`
   - `notebooks/12_qlora_qwen_stance_tuning.ipynb`
+  - `notebooks/13_qwen_qlora_full_corpus_training.ipynb`
 
 
 ---

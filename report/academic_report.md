@@ -551,7 +551,7 @@ During automated test metric parsing, a case discrepancy between lower-case data
 The framework coordinates across local decision inference and cloud fine-tuning:
 1. **Local Ollama Decision Services**: Zero-latency decision endpoints (`http://localhost:11434/v1/systemone`) executing quantized 4B and 9B decision models on Apple Silicon hardware with persistent auto-checkpointing.
 2. **Google Colaboratory REST API (`colaboratory.googleapis.com`)**: Cloud dispatch and lifecycle management for GPU fine-tuning runs (`src/colab_api.py`).
-3. **Reproducible Notebook Pipeline**: Standardized notebooks (`01` through `12`) with automated environment provisioning and repository synchronization (`git clone https://github.com/dustinober1/Arg_Me.git`).
+3. **Reproducible Notebook Pipeline**: Standardized notebooks (`01` through `13`) with automated environment provisioning and repository synchronization (`git clone https://github.com/dustinober1/Arg_Me.git`).
 
 ---
 

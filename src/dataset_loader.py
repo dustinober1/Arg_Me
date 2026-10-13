@@ -124,6 +124,54 @@ def load_sample_df(
     return df
 
 
+def load_full_args_corpus(
+    max_arguments: Optional[int] = None,
+    save_parquet_path: Optional[str] = None,
+    batch_size: int = 1000,
+) -> pd.DataFrame:
+    """
+    Stream or download the args.me corpus from Hugging Face, flattening arguments
+    into premises with stance labels, with optional limit and parquet persistence.
+
+    Args:
+        max_arguments: Maximum number of substantive premise arguments to collect (None for all).
+        save_parquet_path: Optional file path to persist the collected DataFrame.
+        batch_size: Progress logging interval.
+
+    Returns:
+        pd.DataFrame containing the loaded arguments.
+    """
+    print(f"Connecting to Hugging Face Hub for args.me dataset (target: {max_arguments or 'FULL CORPUS'})...")
+    ds = get_args_dataset(streaming=True)
+    all_flattened = []
+    
+    count = 0
+    for record in ds:
+        flattened = flatten_argument_record(record)
+        for item in flattened:
+            stance = str(item.get("stance", "")).strip().upper()
+            if stance in ["PRO", "CON"]:
+                all_flattened.append(item)
+                count += 1
+                if max_arguments and count >= max_arguments:
+                    break
+        if count % (batch_size * 5) == 0 and count > 0:
+            print(f"  Processed {count:,} debate arguments...")
+        if max_arguments and count >= max_arguments:
+            break
+
+    df = pd.DataFrame(all_flattened)
+    print(f"Successfully collected {len(df):,} binary (PRO/CON) debate arguments.")
+
+    if save_parquet_path:
+        p = Path(save_parquet_path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(p, index=False)
+        print(f"Persisted corpus to {p}")
+
+    return df
+
+
 if __name__ == "__main__":
     df_sample = load_sample_df(n_records=100, save_parquet=True)
     print("\nDataset Sample Summary:")
